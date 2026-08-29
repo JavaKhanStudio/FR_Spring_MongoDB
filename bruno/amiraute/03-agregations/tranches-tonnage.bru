@@ -1,0 +1,13 @@
+meta {
+  name: $bucket
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{hote}}/api/statistiques/tranches-tonnage
+}
+
+docs {
+  boundaries est INCLUSIF a gauche, EXCLUSIF a droite. Il faut donc une borne finale au-dela de la derniere valeur.
+}

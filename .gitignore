@@ -1,0 +1,23 @@
+# --- build -----------------------------------------------------------------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- IDE -------------------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# --- systeme ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Bruno -----------------------------------------------------------------
+# Les fichiers .bru SONT versionnes : c'est tout l'interet de Bruno.
+# Seuls les environnements portant des secrets seraient a exclure - il n'y en
+# a pas ici, l'environnement local ne contient qu'une URL.

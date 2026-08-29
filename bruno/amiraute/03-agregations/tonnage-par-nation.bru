@@ -1,0 +1,13 @@
+meta {
+  name: $match - $group - $project - $sort
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{hote}}/api/statistiques/tonnage-par-nation
+}
+
+docs {
+  $match EN PREMIER, toujours : c'est la seule etape qui peut utiliser un index, et elle reduit le flux avant les etapes couteuses.
+}

@@ -1,0 +1,13 @@
+meta {
+  name: Liste par nation
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{hote}}/api/navires?nation=France
+}
+
+docs {
+  Requete DERIVEE + projection par DTO. Spring lit le nom de la methode findByNation et en deduit la requete. NavireSummary est un record, pas une interface : sur une collection polymorphe, une projection par interface echouerait (elle perd le discriminant _class).
+}

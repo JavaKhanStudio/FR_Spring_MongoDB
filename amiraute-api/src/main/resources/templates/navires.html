@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: tete('Navires')}"></head>
+<body>
+<div class="enveloppe">
+  <nav th:replace="~{fragments/layout :: menu('navires')}"></nav>
+
+  <h1>Navires <span th:text="'- ' + ${nation}"></span></h1>
+
+  <div class="lecon">
+    Les colonnes <strong>Port</strong>, <strong>Flotte</strong> et
+    <strong>Missions</strong> sortent du document lui-meme : <strong>aucune
+    jointure</strong>. C'est l'<strong>extended reference</strong> et le pattern
+    <strong>computed</strong>.
+    <br><br>
+    Le compteur en bas affiche <strong>2</strong> : la liste des navires, et le
+    <code>distinct</code> qui alimente le filtre par nation. Deux, <em>quel que
+    soit le nombre de navires affiches</em>.
+    <br><br>
+    <span th:if="${!nplusun}">
+      <a th:href="@{/vue/navires(nation=${nation}, nplusun=true)}">
+        Rejouer en resolvant le port navire par navire &rarr;</a>
+      &nbsp;<span class="badge">c'est ce que ferait &#64;DocumentReference</span>
+    </span>
+    <span th:if="${nplusun}">
+      <strong>Mode N+1 actif.</strong> La page est IDENTIQUE au pixel pres, le
+      compteur ne l'est pas : une requete de plus PAR NAVIRE. Sur dix navires
+      c'est indolore ; sur une liste paginee de cinquante lignes appelee mille
+      fois par minute, c'est cinquante mille requetes par minute.
+      <a th:href="@{/vue/navires(nation=${nation})}">Revenir au mode normal &rarr;</a>
+    </span>
+  </div>
+
+  <p>
+    <span th:each="n : ${nations}">
+      <a th:href="@{/vue/navires(nation=${n}, nplusun=${nplusun})}" th:text="${n}"></a>&nbsp;
+    </span>
+  </p>
+
+  <table>
+    <thead>
+    <tr>
+      <th>Nom</th><th>Coque</th><th>Forme</th><th>Type</th><th>Statut</th>
+      <th class="n">Tonnage</th><th>Port</th><th>Flotte</th><th class="n">Missions</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="n, i : ${navires}">
+      <td><a th:href="@{/vue/navires/{id}(id=${n.id})}" th:text="${n.nom}"></a></td>
+      <td><code th:text="${n.numeroCoque}"></code></td>
+      <td><span class="badge" th:text="${n.categorie}"></span></td>
+      <td th:text="${n.type}"></td>
+      <td th:text="${n.statut}"></td>
+      <td class="n" th:text="${#numbers.formatInteger(n.deplacementTonnes, 1, 'WHITESPACE')} + ' t'"></td>
+      <td th:text="${ports[i.index]}"></td>
+      <td th:text="${n.flotte?.nom}"></td>
+      <td class="n" th:text="${n.stats?.nombreMissions}"></td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+<div th:replace="~{fragments/layout :: compteur}"></div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+meta {
+  name: updateMulti en masse
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{hote}}/api/navires/statut?nation=Atlantide&ancien=ACTIF&nouveau=EN_RESERVE
+}
+
+docs {
+  `updateMulti` : N documents modifies cote serveur, AUCUN charge en memoire.
+
+  L'equivalent avec un repository serait `findAll` puis `saveAll`, soit N+1
+  allers-retours et tout le jeu de donnees en RAM.
+}

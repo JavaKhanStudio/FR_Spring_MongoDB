@@ -1,0 +1,21 @@
+meta {
+  name: Quels index servent vraiment
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{hote}}/api/diagnostic/index/journauxBord
+}
+
+docs {
+  `$indexStats` : un index a 0 utilisation apres plusieurs jours de production
+  est un index a supprimer - il coute a chaque ecriture et ne rend rien.
+
+  Le reflexe : `hideIndex()` d'abord, `dropIndex()` une semaine plus tard.
+
+  A savoir : `$indexStats` n'est autorise NI par `readWrite` NI par `dbAdmin`.
+  Le compte applicatif porte un role sur mesure declarant les actions exactes
+  (`indexStats`, `collStats`, `dbStats`, `enableProfiler`). Voir
+  `docker/mongo-init/`.
+}

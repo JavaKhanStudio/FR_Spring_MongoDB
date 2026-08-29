@@ -1,0 +1,144 @@
+### AMIRAUTE - API REST
+### Fichier .http : lisible par IntelliJ IDEA et par l'extension REST Client
+### de VS Code. Chaque bloc indique le concept MongoDB qu'il declenche.
+
+@hote = http://localhost:8080
+
+### ---------------------------------------------------------------- LECTURE
+
+### Requete derivee + projection par interface
+GET {{hote}}/api/navires?nation=France
+
+### Recherche multicritere - MongoTemplate + Criteria
+GET {{hote}}/api/navires/recherche?nation=France&statut=ACTIF&tonnageMin=5000&tonnageMax=50000&page=0&taille=10&triPar=deplacementTonnes&sens=DESC
+
+### Tous les criteres a la fois
+GET {{hote}}/api/navires/recherche?types=PORTE_AVIONS&types=DESTROYER&propulsion=NUCLEAIRE&anneeMin=2000&nomContient=a&etiquette=otan
+
+### Filtre geographique - $geoWithin (se pagine, contrairement a $near)
+GET {{hote}}/api/navires/recherche?longitude=5.93&latitude=43.12&rayonKm=500
+
+### Index texte - $text avec poids par champ
+GET {{hote}}/api/navires/recherche-texte?q=admiral
+
+### $geoNear - renvoie la DISTANCE calculee
+GET {{hote}}/api/navires/autour?longitude=5.93&latitude=43.12&rayonKm=800
+
+### Par cle metier (nation, numeroCoque)
+GET {{hote}}/api/navires/coque/France/R91
+
+### Le 1-N referenced, pagine
+GET {{hote}}/api/navires/{{navireId}}/equipage?page=0&taille=10
+
+### Le N-N vu depuis le navire - index multicle
+GET {{hote}}/api/navires/{{navireId}}/missions
+
+
+### ------------------------------------------------------------- AGREGATIONS
+
+### $match -> $group -> $project -> $sort
+GET {{hote}}/api/statistiques/tonnage-par-nation
+
+### $unwind + second $match sur les elements eclates
+GET {{hote}}/api/statistiques/armement-par-nation
+
+### $bucket
+GET {{hote}}/api/statistiques/tranches-tonnage
+
+### Trois $lookup enchaines
+GET {{hote}}/api/statistiques/contexte?nation=France
+
+### $facet - six analyses en une passe
+GET {{hote}}/api/statistiques/tableau-de-bord
+
+### Agregation sur les 100 000 releves
+GET {{hote}}/api/statistiques/journal/{{navireId}}?debut=2026-07-01T00:00:00Z&fin=2026-07-31T00:00:00Z
+
+
+### --------------------------------------------- EMBEDDED VS REFERRED (J3)
+
+### Une seule requete : le getter resolu n'est pas touche
+GET {{hote}}/api/demonstration/reference-manuelle?nation=France
+
+### Une requete DE PLUS PAR NAVIRE : compter les lignes de log DEBUG
+GET {{hote}}/api/demonstration/reference-resolue?nation=France
+
+
+### -------------------------------------------------------------- ECRITURE
+
+### Creation
+POST {{hote}}/api/navires
+Content-Type: application/json
+
+{
+  "numeroCoque": "X001",
+  "nom": "Prototype Alpha",
+  "classe": "Essai",
+  "type": "CORVETTE",
+  "nation": "Atlantide",
+  "anneeMiseEnService": 2026,
+  "statut": "ACTIF",
+  "deplacementTonnes": 2400,
+  "vitesseMaxNoeuds": 32,
+  "equipageMax": 90,
+  "propulsion": { "type": "DIESEL", "puissanceChevaux": 12000, "nombreHelices": 2, "nombreReacteurs": 0 },
+  "armements": [
+    { "designation": "Canon d'essai", "categorie": "CANON", "quantite": 1, "porteeKm": 12, "calibreMm": 76 }
+  ],
+  "capteurs": [],
+  "categorie": "batiment-surface",
+  "portAttache": { "id": "TOULON", "nom": "Toulon", "pays": "France" },
+  "flotte": { "id": "FAN", "nom": "Force d'Action Navale", "nation": "France" },
+  "systemeCombat": "ESSAI",
+  "capaciteVLS": 8,
+  "etiquettes": ["prototype"]
+}
+
+### Rejouer la creation ci-dessus -> 409, l'index unique a fait son travail
+
+### updateMulti - N documents modifies cote serveur
+PUT {{hote}}/api/navires/statut?nation=Atlantide&ancien=ACTIF&nouveau=EN_RESERVE
+
+### $addToSet - rejouable sans doublon
+PUT {{hote}}/api/navires/etiquettes?etiquette=experimental
+Content-Type: application/json
+
+["{{navireId}}"]
+
+### Suppression : nettoyage applicatif des references (pas de cascade en Mongo)
+DELETE {{hote}}/api/navires/{{navireId}}
+
+
+### ------------------------------------------------ PERFORMANCE ET DIAGNOSTIC
+
+### La requete lente PLANTEE volontairement - a retrouver par les outils
+GET {{hote}}/api/diagnostic/requete-lente
+
+### Comparaison avec et sans index
+GET {{hote}}/api/diagnostic/comparaison-index
+
+### explain() sur une requete quelconque
+POST {{hote}}/api/diagnostic/explain?collection=journauxBord&triPar=carburantPourcent&sens=1
+Content-Type: application/json
+
+{}
+
+### Quels index servent reellement
+GET {{hote}}/api/diagnostic/index/journauxBord
+
+### Taille des donnees et des index
+GET {{hote}}/api/diagnostic/collection/journauxBord
+
+### Activer le profileur (niveau 1, seuil 20 ms)
+POST {{hote}}/api/diagnostic/profileur?niveau=1
+
+### Les requetes retenues
+GET {{hote}}/api/diagnostic/requetes-lentes?limite=10
+
+### Eteindre le profileur
+POST {{hote}}/api/diagnostic/profileur?niveau=0
+
+
+### ----------------------------------------------------------------- SANTE
+GET {{hote}}/actuator/health
+GET {{hote}}/actuator/metrics

@@ -1,0 +1,21 @@
+meta {
+  name: addToSet idempotent
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{hote}}/api/navires/etiquettes?etiquette=experimental
+  body: json
+}
+
+body:json {
+  ["{{prototypeId}}"]
+}
+
+docs {
+  `$addToSet` n'ajoute que si la valeur est absente. Rejouer cette requete ne
+  cree pas de doublon - `$push`, si.
+
+  Cible le prototype cree a l'etape 1, pas un navire du referentiel.
+}

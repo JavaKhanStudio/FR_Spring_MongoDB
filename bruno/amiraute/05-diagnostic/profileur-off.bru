@@ -1,0 +1,14 @@
+meta {
+  name: Eteindre le profileur
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{hote}}/api/diagnostic/profileur?niveau=0
+}
+
+docs {
+  Toujours eteindre apres la demonstration : `system.profile` est une
+  collection plafonnee qui tourne vite, et le cout d'ecriture n'est pas nul.
+}

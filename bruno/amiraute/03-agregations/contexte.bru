@@ -1,0 +1,13 @@
+meta {
+  name: APRES les patterns - UN seul $lookup
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{hote}}/api/statistiques/contexte?nation=France
+}
+
+docs {
+  portAttache.nom et flotte.nom sont deja dans le document (EXTENDED REFERENCE), stats.nombreMissions aussi (COMPUTED). Il ne reste qu'une jointure : le nom de l'amiral, volontairement pas recopie parce qu'un amiral change de poste.
+}

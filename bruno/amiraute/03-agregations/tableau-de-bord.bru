@@ -1,0 +1,13 @@
+meta {
+  name: $facet - six analyses en une passe
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{hote}}/api/statistiques/tableau-de-bord
+}
+
+docs {
+  Chaque branche calcule sur le MEME flux d'entree. Un aller-retour reseau, un balayage. Limite : aucune branche de $facet ne peut utiliser d'index - le $match en amont, lui, le peut.
+}

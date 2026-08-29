@@ -1,0 +1,55 @@
+meta {
+  name: Creer un navire
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{hote}}/api/navires
+  body: json
+}
+
+body:json {
+  {
+    "categorie": "batiment-surface",
+    "numeroCoque": "X001",
+    "nom": "Prototype Alpha",
+    "classe": "Essai",
+    "type": "CORVETTE",
+    "nation": "Atlantide",
+    "anneeMiseEnService": 2026,
+    "statut": "ACTIF",
+    "deplacementTonnes": 2400,
+    "vitesseMaxNoeuds": 32,
+    "equipageMax": 90,
+    "propulsion": { "type": "DIESEL", "puissanceChevaux": 12000, "nombreHelices": 2, "nombreReacteurs": 0 },
+    "armements": [
+      { "designation": "Canon d'essai", "categorie": "CANON", "quantite": 1, "porteeKm": 12, "calibreMm": 76 }
+    ],
+    "capteurs": [],
+    "portAttache": { "id": "TOULON", "nom": "Toulon", "pays": "France" },
+    "flotte": { "id": "FAN", "nom": "Force d'Action Navale", "nation": "France" },
+    "systemeCombat": "ESSAI",
+    "capaciteVLS": 8,
+    "etiquettes": ["prototype"]
+  }
+}
+
+vars:post-response {
+  prototypeId: res.body.id
+}
+
+docs {
+  Le champ `categorie` est le discriminant JACKSON, distinct du `_class` que
+  Spring Data ecrit en base. Deux discriminants, deux frontieres : le reseau
+  et la base. Sans `categorie`, Jackson ne sait pas quelle sous-classe
+  instancier et rejette le corps.
+
+  REJOUER cette requete : le second appel doit rendre **409 Conflict**.
+  C'est l'index unique compose (nation, numeroCoque) qui refuse, cote
+  SERVEUR - la contrainte tient meme si deux instances de l'API ecrivent
+  en meme temps.
+
+  L'identifiant cree est capture dans `prototypeId` : les requetes suivantes
+  de ce dossier travaillent sur CE navire, jamais sur le jeu de reference.
+}

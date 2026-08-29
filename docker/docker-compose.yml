@@ -1,0 +1,329 @@
+# Infrastructure MongoDB de la formation AMIRAUTE.
+# Trois profils exclusifs : simple / replique / partition.
+#   docker compose --profile simple    up -d
+#   docker compose --profile replique  up -d
+#   docker compose --profile partition up -d
+name: amiraute
+
+services:
+
+  # =========================================================================
+  # PROFIL "simple" - un seul mongod, authentification activee.
+  # C'est le profil de 90 % de la formation (J1, J2 matin, J3).
+  # =========================================================================
+  mongo:
+    image: mongo:8.0
+    container_name: amiraute-mongo
+    profiles: ["simple"]
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: amiral
+      MONGO_INITDB_ROOT_PASSWORD: amiral
+      MONGO_INITDB_DATABASE: amiraute
+      # CONTOURNEMENT SERVER-121912
+      # MongoDB 8.0+ refuse de demarrer sur un noyau Linux >= 6.19 : le
+      # TCMalloc embarque est incompatible avec les 'restartable sequences'
+      # (rseq) de ces noyaux, et un garde-fou bloque le serveur au demarrage.
+      # Forcer rseq=1 leve le blocage. A retirer quand MongoDB publiera un
+      # correctif. Verifier son noyau avec : uname -r
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    volumes:
+      - donnees-simple:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d:ro,z
+      # Les scripts du cours, joues avec --file et non par stdin : mongosh
+      # lu sur stdin se comporte en REPL et casse certaines constructions
+      # multi-lignes. Le suffixe z pose le label SELinux, sans quoi le
+      # conteneur recoit "Permission denied" sur Fedora, RHEL et CentOS.
+      - ../mongosh:/projet/mongosh:ro,z
+      - ../exercices:/projet/exercices:ro,z
+    command:
+      # Cache volontairement bride : rend les effets d'index plus visibles
+      # sur journauxBord, et evite qu'un poste de formation soit etouffe.
+      - "--wiredTigerCacheSizeGB=1"
+      # Seuil de "requete lente", en millisecondes.
+      #
+      # C'est un parametre SERVEUR, global a l'instance. Le modifier depuis une
+      # connexion applicative exige des droits de niveau cluster que le compte
+      # amiraute_app n'a pas - et ne doit pas avoir. Verifie :
+      #   { profile: 1 }             -> autorise avec enableProfiler
+      #   { profile: 1, slowms: 20 } -> Unauthorized
+      # On le fixe donc ici, une fois pour toutes.
+      - "--slowms=20"
+    healthcheck:
+      # start_period genereux : l'entrypoint demarre un mongod TEMPORAIRE pour
+      # jouer /docker-entrypoint-initdb.d, l'arrete, puis relance le vrai.
+      # Un ping reussi trop tot repond donc contre l'instance d'init, qui va
+      # disparaitre. Les stagiaires voient sinon un ECONNREFUSED juste apres
+      # un "healthy".
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: amiraute-express
+    profiles: ["simple"]
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://amiral:amiral@mongo:27017/?authSource=admin
+      ME_CONFIG_BASICAUTH: "false"
+      ME_CONFIG_SITE_BASEURL: /
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # =========================================================================
+  # PROFIL "replique" - replica set a 3 noeuds (J2 apres-midi).
+  # Pas d'authentification : un replica set authentifie exige un keyfile
+  # partage, hors sujet ici. Voir docker/README.md.
+  # =========================================================================
+  mongo1:
+    image: mongo:8.0
+    container_name: amiraute-mongo1
+    hostname: mongo1
+    profiles: ["replique"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - donnees-rs1:/data/db
+      # Les scripts du cours, joues avec --file (jamais par stdin : mongosh
+      # lu sur stdin se comporte en REPL et pollue la sortie d'invites).
+      - ../mongosh:/projet/mongosh:ro,z
+      - ../exercices:/projet/exercices:ro,z
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["--replSet", "rsAmiraute", "--bind_ip_all", "--wiredTigerCacheSizeGB=0.5"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo2:
+    image: mongo:8.0
+    container_name: amiraute-mongo2
+    hostname: mongo2
+    profiles: ["replique"]
+    ports:
+      - "27019:27017"
+    volumes:
+      - donnees-rs2:/data/db
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["--replSet", "rsAmiraute", "--bind_ip_all", "--wiredTigerCacheSizeGB=0.5"]
+
+  mongo3:
+    image: mongo:8.0
+    container_name: amiraute-mongo3
+    hostname: mongo3
+    profiles: ["replique"]
+    ports:
+      - "27020:27017"
+    volumes:
+      - donnees-rs3:/data/db
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["--replSet", "rsAmiraute", "--bind_ip_all", "--wiredTigerCacheSizeGB=0.5"]
+
+  # Conteneur ephemere : initie le replica set puis s'arrete.
+  rs-init:
+    image: mongo:8.0
+    container_name: amiraute-rs-init
+    profiles: ["replique"]
+    restart: "no"
+    depends_on:
+      mongo1:
+        condition: service_healthy
+    volumes:
+      - ./rs-init:/scripts:ro,z
+    entrypoint: ["mongosh", "--host", "mongo1", "--file", "/scripts/initier-replique.js"]
+
+  # =========================================================================
+  # PROFIL "partition" - cluster sharde minimal (J2 apres-midi).
+  # 1 config server + 2 shards + 1 routeur mongos. Sans authentification.
+  # =========================================================================
+  configsvr:
+    image: mongo:8.0
+    container_name: amiraute-configsvr
+    hostname: configsvr
+    profiles: ["partition"]
+    volumes:
+      - donnees-config:/data/configdb
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["--configsvr", "--replSet", "rsConfig", "--bind_ip_all", "--port", "27017"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  shard1:
+    image: mongo:8.0
+    container_name: amiraute-shard1
+    hostname: shard1
+    profiles: ["partition"]
+    volumes:
+      - donnees-shard1:/data/db
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["--shardsvr", "--replSet", "rsShard1", "--bind_ip_all", "--port", "27017",
+               "--wiredTigerCacheSizeGB=0.5",
+               # Apres une migration, le shard SOURCE garde les documents
+               # deplaces (les "orphelins") pendant 900 s par defaut. En
+               # salle, cela rend les compteurs illisibles pendant toute la
+               # demonstration. 10 s suffit ici.
+               "--setParameter", "orphanCleanupDelaySecs=10"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  shard2:
+    image: mongo:8.0
+    container_name: amiraute-shard2
+    hostname: shard2
+    profiles: ["partition"]
+    volumes:
+      - donnees-shard2:/data/db
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["--shardsvr", "--replSet", "rsShard2", "--bind_ip_all", "--port", "27017",
+               "--wiredTigerCacheSizeGB=0.5",
+               # Apres une migration, le shard SOURCE garde les documents
+               # deplaces (les "orphelins") pendant 900 s par defaut. En
+               # salle, cela rend les compteurs illisibles pendant toute la
+               # demonstration. 10 s suffit ici.
+               "--setParameter", "orphanCleanupDelaySecs=10"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Initie les trois replica sets (config, shard1, shard2) avant le routeur.
+  shard-init:
+    image: mongo:8.0
+    container_name: amiraute-shard-init
+    profiles: ["partition"]
+    restart: "no"
+    depends_on:
+      configsvr:
+        condition: service_healthy
+      shard1:
+        condition: service_healthy
+      shard2:
+        condition: service_healthy
+    volumes:
+      - ./shard-init:/scripts:ro,z
+    entrypoint: ["bash", "/scripts/initier-partition.sh"]
+
+  mongos:
+    image: mongo:8.0
+    container_name: amiraute-mongos
+    hostname: mongos
+    profiles: ["partition"]
+    ports:
+      # 27117 cote hote : le cluster sharde peut coexister avec le profil simple.
+      - "27117:27017"
+    depends_on:
+      shard-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./shard-init:/scripts:ro,z
+      # Les scripts du cours, pour les jouer avec --file sur le routeur.
+      - ../mongosh:/projet/mongosh:ro,z
+      - ../exercices:/projet/exercices:ro,z
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    command: ["mongos", "--configdb", "rsConfig/configsvr:27017", "--bind_ip_all", "--port", "27017"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Rattache les deux shards au routeur puis s'arrete.
+  mongos-init:
+    image: mongo:8.0
+    container_name: amiraute-mongos-init
+    profiles: ["partition"]
+    restart: "no"
+    depends_on:
+      mongos:
+        condition: service_healthy
+    volumes:
+      - ./shard-init:/scripts:ro,z
+    entrypoint: ["mongosh", "--host", "mongos", "--file", "/scripts/rattacher-shards.js"]
+
+  # ---------------------------------------------------------------------------
+  # PROFIL "extension" - le TROISIEME shard, demarre a la demande.
+  #
+  # C'est la demonstration du passage a l'echelle horizontale : on ajoute une
+  # machine a un cluster qui tourne, et le repartiteur deplace les donnees tout
+  # seul. Aucune interruption de service.
+  #
+  #   make partition            <- cluster a 2 shards, on charge, on observe
+  #   make etendre              <- on ajoute shard3 EN DIRECT
+  #
+  # Le profil "partition" doit deja tourner.
+  # ---------------------------------------------------------------------------
+  shard3:
+    image: mongo:8.0
+    container_name: amiraute-shard3
+    hostname: shard3
+    profiles: ["extension"]
+    environment:
+      # Contournement SERVER-121912 : voir le service mongo, plus haut.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    volumes:
+      - donnees-shard3:/data/db
+    command: ["--shardsvr", "--replSet", "rsShard3", "--bind_ip_all", "--port", "27017",
+               "--wiredTigerCacheSizeGB=0.5",
+               # Apres une migration, le shard SOURCE garde les documents
+               # deplaces (les "orphelins") pendant 900 s par defaut. En
+               # salle, cela rend les compteurs illisibles pendant toute la
+               # demonstration. 10 s suffit ici.
+               "--setParameter", "orphanCleanupDelaySecs=10"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Initie rsShard3 puis le rattache au routeur, sans rien interrompre.
+  shard3-init:
+    image: mongo:8.0
+    container_name: amiraute-shard3-init
+    profiles: ["extension"]
+    restart: "no"
+    depends_on:
+      shard3:
+        condition: service_healthy
+    volumes:
+      - ./shard-init:/scripts:ro,z
+    entrypoint: ["bash", "/scripts/ajouter-shard3.sh"]
+
+volumes:
+  donnees-simple:
+  donnees-rs1:
+  donnees-rs2:
+  donnees-rs3:
+  donnees-config:
+  donnees-shard1:
+  donnees-shard2:
+  donnees-shard3:

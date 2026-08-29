@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: tete('Tableau de bord')}"></head>
+<body>
+<div class="enveloppe">
+  <nav th:replace="~{fragments/layout :: menu('tb')}"></nav>
+
+  <h1>Tableau de bord de l'amiral</h1>
+
+  <div class="lecon">
+    Tout cet ecran vient d'<strong>UN SEUL pipeline</strong> avec un
+    <code>$facet</code> : chaque bloc est une branche calculee sur le meme flux
+    d'entree. Un aller-retour reseau, un balayage.
+    <br><br>
+    Limite a connaitre : <strong>aucune branche de <code>$facet</code> ne peut
+    utiliser d'index</strong>. Le <code>$match</code> place en amont, lui, le peut -
+    c'est pour cela qu'il filtre les navires desarmes avant le <code>$facet</code>.
+  </div>
+
+  <div class="grille">
+    <div class="carte"><h3>Navires en service</h3>
+      <div class="gros" th:text="${tb.nombreNavires}"></div></div>
+    <div class="carte"><h3>Tonnage cumule</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(tb.tonnageTotal,1,'WHITESPACE')}"></div>tonnes</div>
+    <div class="carte"><h3>Equipage cumule</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(tb.equipageTotal,1,'WHITESPACE')}"></div>hommes</div>
+  </div>
+
+  <h2>Par type</h2>
+  <table>
+    <tbody>
+    <tr th:each="e : ${tb.parType}">
+      <td th:text="${e.key}"></td><td class="n" th:text="${e.value}"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Par statut</h2>
+  <table>
+    <tbody>
+    <tr th:each="e : ${tb.parStatut}">
+      <td th:text="${e.key}"></td><td class="n" th:text="${e.value}"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Par propulsion</h2>
+  <table>
+    <tbody>
+    <tr th:each="e : ${tb.parPropulsion}">
+      <td th:text="${e.key}"></td><td class="n" th:text="${e.value}"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Par nation</h2>
+  <table>
+    <thead><tr><th>Nation</th><th class="n">Navires</th><th class="n">Tonnage</th>
+      <th class="n">Moyenne</th><th class="n">Le plus lourd</th></tr></thead>
+    <tbody>
+    <tr th:each="n : ${tb.parNation}">
+      <td><a th:href="@{/vue/navires(nation=${n.nation})}" th:text="${n.nation}"></a></td>
+      <td class="n" th:text="${n.nombreNavires}"></td>
+      <td class="n" th:text="${#numbers.formatInteger(n.tonnageTotal,1,'WHITESPACE')}"></td>
+      <td class="n" th:text="${#numbers.formatInteger(n.tonnageMoyen,1,'WHITESPACE')}"></td>
+      <td class="n" th:text="${#numbers.formatInteger(n.tonnageMax,1,'WHITESPACE')}"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Repartition par tranche <span class="badge">$bucket</span></h2>
+  <table>
+    <thead><tr><th>A partir de</th><th class="n">Navires</th><th>Exemples</th></tr></thead>
+    <tbody>
+    <tr th:each="t : ${tranches}">
+      <td th:text="${#numbers.formatInteger(t.borneInferieure,1,'WHITESPACE')} + ' t'"></td>
+      <td class="n" th:text="${t.nombre}"></td>
+      <td th:text="${#strings.listJoin(t.exemples, ', ')}"></td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+<div th:replace="~{fragments/layout :: compteur}"></div>
+</body>
+</html>

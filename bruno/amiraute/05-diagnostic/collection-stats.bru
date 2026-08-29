@@ -1,0 +1,17 @@
+meta {
+  name: Taille des donnees et des index
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{hote}}/api/diagnostic/collection/journauxBord
+}
+
+docs {
+  Quand la taille des index approche celle des donnees, il y a trop d'index.
+
+  Noter `idx_evenement_partiel` : **20 Ko** contre 1 316 Ko pour l'index
+  compose. Un index partiel bien filtre ne contient que ~250 entrees au lieu
+  de 100 000.
+}

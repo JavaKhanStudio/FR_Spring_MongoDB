@@ -1,0 +1,13 @@
+meta {
+  name: N+1 - ce que fait @DocumentReference
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{hote}}/api/demo/resolution-n-plus-1?nation=France
+}
+
+docs {
+  Une requete pour la liste, puis UNE PAR NAVIRE. Sur 10 navires c'est indolore ; sur une liste paginee de 50 lignes appelee 1 000 fois par minute, c'est 50 000 requetes par minute. Activer le log DEBUG de MongoTemplate et COMPTER les lignes.
+}

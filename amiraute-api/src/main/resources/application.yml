@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: amiraute-api
+
+  data:
+    mongodb:
+      uri: mongodb://amiraute_app:amiraute@localhost:27017/amiraute?authSource=amiraute
+      # DESACTIVE VOLONTAIREMENT. Les annotations @Indexed / @CompoundIndex sur
+      # les documents documentent l'intention ; la creation reelle est faite au
+      # demarrage par IndexConfig. Voir CONCEPTION.md 6.2.
+      auto-index-creation: false
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,mappings
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    # Affiche la requete BSON reellement envoyee au serveur. Indispensable pour
+    # le module Performance : on voit ce que Spring a traduit, pas ce qu'on
+    # croit avoir ecrit.
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+
+amiraute:
+  index:
+    # Passer a false pour demontrer, en salle, l'effet de l'absence d'index.
+    creer-au-demarrage: true
+
+---
+# Profil "sansindex" : demarre sans creer aucun index. Sert la demonstration
+# avant / apres du J3 apres-midi.
+spring:
+  config:
+    activate:
+      on-profile: sansindex
+amiraute:
+  index:
+    creer-au-demarrage: false

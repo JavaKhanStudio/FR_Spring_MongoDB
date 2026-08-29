@@ -1,0 +1,13 @@
+meta {
+  name: Agregation sur 100 000 releves
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{hote}}/api/statistiques/journal/{{navireId}}?debut=2026-07-01T00:00:00Z&fin=2026-07-31T00:00:00Z
+}
+
+docs {
+  Le $match initial descend dans idx_navire_temps. Sans lui, ce pipeline balaierait toute la collection. `navireId` est capture par la requete 01 Lecture / Par cle metier : la jouer avant, ou lancer le dossier entier.
+}

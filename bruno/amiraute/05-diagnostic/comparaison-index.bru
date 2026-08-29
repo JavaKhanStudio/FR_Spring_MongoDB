@@ -1,0 +1,17 @@
+meta {
+  name: Avant / apres index
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{hote}}/api/diagnostic/comparaison-index
+}
+
+docs {
+  La meme collection, deux requetes : un tri non indexe (100 000 documents
+  examines) et un filtre indexe (2 440).
+
+  LE ratio a regarder est toujours **docs lus / docs rendus**. Proche de 1,
+  l'index fait le travail. Eleve, MongoDB filtre en memoire apres coup.
+}

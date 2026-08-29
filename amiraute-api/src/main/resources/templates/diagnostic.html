@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: tete('Diagnostic')}"></head>
+<body>
+<div class="enveloppe">
+  <nav th:replace="~{fragments/layout :: menu('diag')}"></nav>
+
+  <h1>Diagnostic</h1>
+
+  <div class="lecon">
+    Un ratio dans un <code>explain()</code> convainc moins qu'une page qui rame.
+    Cette page <strong>declenche vraiment</strong> la requete lente plantee dans
+    le projet - regarder le compteur en bas, et le temps de chargement.
+  </div>
+
+  <h2>La requete lente</h2>
+  <div class="grille">
+    <div class="carte"><h3>Duree</h3>
+      <div class="gros" th:text="${lente.dureeMs}"></div>millisecondes</div>
+    <div class="carte"><h3>Documents lus</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(explain.docsExamines,1,'WHITESPACE')}"></div></div>
+    <div class="carte"><h3>Documents rendus</h3>
+      <div class="gros" th:text="${explain.rendus}"></div></div>
+    <div class="carte"><h3>Ratio lus / rendus</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(explain.ratioLusParRendu,1,'WHITESPACE')}"></div>
+      <span th:if="${explain.ratioLusParRendu > 10}">catastrophique</span></div>
+  </div>
+  <p>Plan d'execution : <code th:text="${#strings.listJoin(explain.etapes, ' &lt;- ')}"></code></p>
+  <div class="lecon">
+    L'etape <code>SORT</code> signifie que MongoDB a trie
+    <strong>en memoire</strong>. Limite dure : 100 Mo. C'est le profil type de
+    la requete qui passe la recette et casse en production.
+  </div>
+
+  <h2>Avant / apres index</h2>
+  <table>
+    <thead><tr><th>Requete</th><th class="n">Docs lus</th><th class="n">Rendus</th>
+      <th class="n">Duree</th><th>Plan</th></tr></thead>
+    <tbody>
+    <tr>
+      <td>Tri non indexe (<code>carburantPourcent</code>)</td>
+      <td class="n" th:text="${#numbers.formatInteger(comparaison.triNonIndexe.docsExamines,1,'WHITESPACE')}"></td>
+      <td class="n" th:text="${comparaison.triNonIndexe.rendus}"></td>
+      <td class="n" th:text="${comparaison.triNonIndexe.dureeMs} + ' ms'"></td>
+      <td><code th:text="${#strings.listJoin(comparaison.triNonIndexe.etapes, ' &lt;- ')}"></code></td>
+    </tr>
+    <tr>
+      <td>Filtre indexe (<code>navireId</code>)</td>
+      <td class="n" th:text="${#numbers.formatInteger(comparaison.filtreIndexe.docsExamines,1,'WHITESPACE')}"></td>
+      <td class="n" th:text="${comparaison.filtreIndexe.rendus}"></td>
+      <td class="n" th:text="${comparaison.filtreIndexe.dureeMs} + ' ms'"></td>
+      <td><code th:text="${#strings.listJoin(comparaison.filtreIndexe.etapes, ' &lt;- ')}"></code></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Qui sert vraiment ? <span class="badge">$indexStats</span></h2>
+  <table>
+    <thead><tr><th>Index</th><th class="n">Utilisations</th></tr></thead>
+    <tbody>
+    <tr th:each="i : ${index}">
+      <td><code th:text="${i.get('nom')}"></code></td>
+      <td class="n" th:text="${i.get('utilisations')}"></td>
+    </tr>
+    </tbody>
+  </table>
+  <div class="lecon">
+    Un index a <strong>0 utilisation</strong> coute a chaque ecriture et ne rend
+    rien. Le reflexe : <code>hideIndex()</code> une semaine, puis
+    <code>dropIndex()</code>.
+    <br><br>
+    Attention : ce compteur part de la <strong>creation de l'index</strong>. En
+    production on le regarde apres plusieurs jours de trafic reel.
+  </div>
+
+  <h2>journauxBord <span class="badge">$collStats</span></h2>
+  <div class="grille">
+    <div class="carte"><h3>Documents</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(collection.documents,1,'WHITESPACE')}"></div></div>
+    <div class="carte"><h3>Donnees</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(collection.tailleDonneesKo,1,'WHITESPACE')}"></div>Ko</div>
+    <div class="carte"><h3>Index</h3>
+      <div class="gros" th:text="${collection.nombreIndex}"></div>
+      <span th:text="${#numbers.formatInteger(collection.tailleIndexKo,1,'WHITESPACE')} + ' Ko'"></span></div>
+  </div>
+</div>
+<div th:replace="~{fragments/layout :: compteur}"></div>
+</body>
+</html>

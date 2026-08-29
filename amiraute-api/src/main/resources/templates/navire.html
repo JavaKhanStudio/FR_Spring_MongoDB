@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: tete(${navire.nom})}"></head>
+<body>
+<div class="enveloppe">
+  <nav th:replace="~{fragments/layout :: menu('navires')}"></nav>
+
+  <h1 th:text="${navire.nom}"></h1>
+  <p>
+    <code th:text="${navire.numeroCoque}"></code>
+    &middot; <span th:text="${navire.nation}"></span>
+    &middot; <span th:text="${navire.classe}"></span>
+    &middot; <span class="badge" th:text="${navire.categorie}"></span>
+  </p>
+  <p th:if="${navire.devise}"><em th:text="'&laquo; ' + ${navire.devise} + ' &raquo;'"></em></p>
+
+  <div class="lecon">
+    Le bloc <strong>Caracteristiques propres</strong> ci-dessous change selon la
+    forme du document. Un sous-marin montre sa profondeur d'immersion, un
+    porte-aeronefs son groupe aerien. Meme collection, trois formes :
+    c'est le pattern <strong>polymorphic</strong>, et le champ
+    <code>_class</code> qui le pilote.
+  </div>
+
+  <h2>Tronc commun</h2>
+  <div class="grille">
+    <div class="carte"><h3>Deplacement</h3>
+      <div class="gros" th:text="${#numbers.formatInteger(navire.deplacementTonnes,1,'WHITESPACE')}"></div>tonnes</div>
+    <div class="carte"><h3>Vitesse max</h3>
+      <div class="gros" th:text="${navire.vitesseMaxNoeuds}"></div>noeuds</div>
+    <div class="carte"><h3>Equipage</h3>
+      <div class="gros" th:text="${navire.equipageMax}"></div>hommes</div>
+    <div class="carte"><h3>Propulsion</h3>
+      <div th:text="${navire.propulsion?.type}"></div>
+      <div th:text="${navire.propulsion?.puissanceChevaux} + ' ch'"></div></div>
+  </div>
+
+  <!-- POLYMORPHIC : trois blocs mutuellement exclusifs, pilotes par la forme -->
+  <h2>Caracteristiques propres a
+    <span th:text="${navire.categorie}"></span></h2>
+
+  <div th:if="${navire.categorie == 'sous-marin'}" class="grille">
+    <div class="carte"><h3>Immersion max</h3>
+      <div class="gros" th:text="${navire.profondeurMaxMetres}"></div>metres</div>
+    <div class="carte"><h3>Mission</h3>
+      <div th:text="${navire.missionStrategique}"></div></div>
+    <div class="carte"><h3>Tubes lance-torpilles</h3>
+      <div class="gros" th:text="${navire.nombreTubesLanceTorpilles}"></div></div>
+    <div class="carte"><h3>Discretion</h3>
+      <div class="gros" th:text="${navire.discretionDecibels}"></div>decibels</div>
+  </div>
+
+  <div th:if="${navire.categorie == 'porte-aeronefs'}">
+    <div class="grille">
+      <div class="carte"><h3>Catapulte</h3><div th:text="${navire.typeCatapulte}"></div></div>
+      <div class="carte"><h3>Aeronefs</h3>
+        <div class="gros" th:text="${navire.nombreAeronefs}"></div></div>
+      <div class="carte"><h3>Piste</h3>
+        <div class="gros" th:text="${navire.longueurPisteMetres}"></div>metres</div>
+      <div class="carte"><h3>Ascenseurs</h3>
+        <div class="gros" th:text="${navire.nombreAscenseurs}"></div></div>
+    </div>
+    <h2>Groupe aerien embarque</h2>
+    <table>
+      <thead><tr><th>Modele</th><th>Role</th><th class="n">Quantite</th></tr></thead>
+      <tbody>
+      <tr th:each="a : ${navire.groupeAerien}">
+        <td th:text="${a.modele}"></td><td th:text="${a.role}"></td>
+        <td class="n" th:text="${a.quantite}"></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div th:if="${navire.categorie == 'batiment-surface'}" class="grille">
+    <div class="carte"><h3>Systeme de combat</h3><div th:text="${navire.systemeCombat}"></div></div>
+    <div class="carte"><h3>Cellules VLS</h3>
+      <div class="gros" th:text="${navire.capaciteVLS}"></div></div>
+    <div class="carte"><h3>Helicopteres</h3>
+      <div class="gros" th:text="${navire.nombreHelicopteres}"></div></div>
+  </div>
+
+  <h2>Etat-major <span class="badge">subset</span></h2>
+  <table>
+    <thead><tr><th>Role</th><th>Grade</th><th>Nom</th><th>Matricule</th></tr></thead>
+    <tbody>
+    <tr th:each="o : ${navire.etatMajor}">
+      <td th:text="${o.role}"></td><td th:text="${o.grade}"></td>
+      <td th:text="${o.prenom} + ' ' + ${o.nom}"></td>
+      <td><code th:text="${o.matricule}"></code></td>
+    </tr>
+    </tbody>
+  </table>
+  <div class="lecon">
+    Ces cinq officiers sont <strong>embarques dans le document</strong>. Les
+    <span th:text="${navire.stats?.effectifActuel}"></span> autres membres
+    d'equipage sont dans une collection separee : cardinalite non bornee.
+    C'est le pattern <strong>subset</strong>.
+  </div>
+
+  <h2>Armements</h2>
+  <table>
+    <thead><tr><th>Designation</th><th>Categorie</th><th class="n">Quantite</th><th class="n">Portee</th></tr></thead>
+    <tbody>
+    <tr th:each="a : ${navire.armements}">
+      <td th:text="${a.designation}"></td><td th:text="${a.categorie}"></td>
+      <td class="n" th:text="${a.quantite}"></td>
+      <td class="n" th:text="${a.porteeKm} + ' km'"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <h2>Missions</h2>
+  <table>
+    <thead><tr><th>Code</th><th>Type</th><th>Statut</th><th>Zone</th></tr></thead>
+    <tbody>
+    <tr th:each="m : ${missions}">
+      <td th:text="${m.nomCode}"></td><td th:text="${m.type}"></td>
+      <td th:text="${m.statut}"></td><td th:text="${m.zoneOperation?.nom}"></td>
+    </tr>
+    <tr th:if="${missions.isEmpty()}"><td colspan="4">Aucune mission.</td></tr>
+    </tbody>
+  </table>
+</div>
+<div th:replace="~{fragments/layout :: compteur}"></div>
+</body>
+</html>

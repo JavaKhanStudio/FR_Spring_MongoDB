@@ -1,0 +1,21 @@
+meta {
+  name: La requete lente plantee
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{hote}}/api/diagnostic/requete-lente
+}
+
+docs {
+  La requete lente introduite VOLONTAIREMENT dans le projet : un tri sur
+  `carburantPourcent`, champ non indexe, sur 100 000 documents.
+
+  Lire `ratioLusParRendu` : **5000**. Cent mille documents lus pour en rendre
+  vingt. Le plan contient `SORT <- COLLSCAN` : MongoDB trie EN MEMOIRE, avec
+  une limite dure de 100 Mo.
+
+  L'exercice E12 demande de la retrouver PAR LES OUTILS - profileur ou logs -
+  et non en lisant ce commentaire.
+}

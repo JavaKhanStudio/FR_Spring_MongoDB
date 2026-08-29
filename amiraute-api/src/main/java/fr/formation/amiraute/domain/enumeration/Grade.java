@@ -1,0 +1,15 @@
+package fr.formation.amiraute.domain.enumeration;
+
+public enum Grade {
+    MATELOT,
+    QUARTIER_MAITRE,
+    SECOND_MAITRE,
+    MAITRE,
+    PREMIER_MAITRE,
+    MAJOR,
+    ENSEIGNE_DE_VAISSEAU,
+    LIEUTENANT_DE_VAISSEAU,
+    CAPITAINE_DE_CORVETTE,
+    CAPITAINE_DE_FREGATE,
+    CAPITAINE_DE_VAISSEAU
+}

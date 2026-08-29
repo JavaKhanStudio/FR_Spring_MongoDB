@@ -1,0 +1,19 @@
+meta {
+  name: Les requetes retenues
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{hote}}/api/diagnostic/requetes-lentes?limite=10
+}
+
+docs {
+  `planSummary` est la colonne a lire en PREMIER :
+
+      COLLSCAN        balayage complet, suspect des que la collection grossit
+      IXSCAN { ... }  index utilise, et lequel
+      SORT            tri en memoire, candidat a un index
+
+  Jouer d'abord "La requete lente plantee" pour alimenter le profileur.
+}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+  Gabarit commun aux quatre pages.
+
+  Le pied de page affiche le COMPTEUR DE REQUETES MONGO de l'appel en cours.
+  C'est lui qui donne sa valeur pedagogique a cette couche : le N+1 et
+  l'extended reference deviennent visibles sans lire un seul log.
+-->
+
+<head th:fragment="tete(titre)">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="'AMIRAUTE - ' + ${titre}">AMIRAUTE</title>
+  <style>
+    :root {
+      --fond: #f4f6f6; --panneau: #fff; --encre: #0e2233; --sourdine: #63798a;
+      --trait: #c7d3d8; --accent: #b3005e; --code: #edf2f3;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fond: #0a151e; --panneau: #101f2a; --encre: #dee8ec; --sourdine: #7d95a2;
+        --trait: #253a46; --accent: #ff5c9d; --code: #14232d;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fond); color: var(--encre);
+           font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .enveloppe { max-width: 1100px; margin: 0 auto; padding: 0 24px 120px; }
+    nav { border-bottom: 2px solid var(--encre); margin-bottom: 28px;
+          display: flex; gap: 4px; flex-wrap: wrap; align-items: baseline;
+          padding: 18px 0 0; }
+    nav .marque { font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+                  margin-right: 20px; font-size: 14px; }
+    nav a { text-decoration: none; color: var(--sourdine); padding: 8px 12px;
+            border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; }
+    nav a:hover { color: var(--encre); }
+    nav a.actif { color: var(--accent); border-bottom-color: var(--accent); }
+    h1 { font-size: 26px; margin: 0 0 4px; }
+    h2 { font-size: 17px; margin: 32px 0 10px; text-transform: uppercase;
+         letter-spacing: .08em; color: var(--sourdine); }
+    .lecon { background: var(--panneau); border-left: 3px solid var(--accent);
+             padding: 12px 16px; margin: 0 0 22px; font-size: 14px; }
+    .lecon strong { color: var(--accent); }
+    table { border-collapse: collapse; width: 100%; font-size: 14px;
+            background: var(--panneau); margin-bottom: 22px; }
+    th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--trait); }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+         color: var(--sourdine); white-space: nowrap; }
+    td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    a { color: var(--accent); }
+    code { background: var(--code); padding: 1px 5px; border-radius: 2px;
+           font-size: 13px; font-family: ui-monospace, monospace; }
+    .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+              gap: 18px; }
+    .carte { background: var(--panneau); border: 1px solid var(--trait); padding: 14px 16px; }
+    .carte h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+                letter-spacing: .08em; color: var(--sourdine); }
+    .gros { font-size: 26px; font-variant-numeric: tabular-nums; }
+    .compteur { position: fixed; bottom: 0; left: 0; right: 0; background: var(--encre);
+                color: var(--fond); padding: 10px 24px; font-size: 13px;
+                font-family: ui-monospace, monospace; display: flex; gap: 24px;
+                flex-wrap: wrap; align-items: center; }
+    .compteur .fort { color: #ff8fbe; font-weight: 700; }
+    .compteur details { color: inherit; }
+    .compteur summary { cursor: pointer; }
+    .compteur ol { margin: 8px 0 0; padding-left: 22px; max-height: 140px; overflow: auto; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 7px;
+             border: 1px solid var(--trait); border-radius: 2px; color: var(--sourdine);
+             text-transform: uppercase; letter-spacing: .06em; }
+  </style>
+</head>
+
+<body>
+<nav th:fragment="menu(page)">
+  <span class="marque">Amiraute</span>
+  <a href="/vue/navires"        th:classappend="${page == 'navires'}   ? 'actif'">Navires</a>
+  <a href="/vue/tableau-de-bord" th:classappend="${page == 'tb'}       ? 'actif'">Tableau de bord</a>
+  <a href="/vue/diagnostic"      th:classappend="${page == 'diag'}     ? 'actif'">Diagnostic</a>
+</nav>
+
+<!--
+  Le compteur. `compteurMongo` est pose dans la requete par le filtre de
+  VueConfig, apres l'execution du controleur.
+-->
+<div class="compteur" th:fragment="compteur">
+  <span>Cette page a declenche
+    <span class="fort" th:text="${compteurMongo?.nombre() ?: 0}">0</span>
+    requete(s) MongoDB en
+    <span class="fort" th:text="${compteurMongo?.dureeMs() ?: 0}">0</span> ms
+  </span>
+  <details th:if="${compteurMongo != null and compteurMongo.nombre() > 0}">
+    <summary>voir le detail</summary>
+    <ol>
+      <li th:each="c : ${compteurMongo.commandes()}" th:text="${c}"></li>
+    </ol>
+  </details>
+</div>
+</body>
+</html>

@@ -1,0 +1,13 @@
+meta {
+  name: AVANT les patterns - trois $lookup
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{hote}}/api/statistiques/contexte-par-lookup?nation=France
+}
+
+docs {
+  La MEME donnee, obtenue a l'ancienne. Comparer les temps de reponse et le nombre de jointures avec la requete precedente.
+}

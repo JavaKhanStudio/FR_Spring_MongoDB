@@ -1,0 +1,13 @@
+meta {
+  name: POLYMORPHIC - le piege du module
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{hote}}/api/navires/comptage-par-forme
+}
+
+docs {
+  LE PIEGE. On attend d'un repository type sur SousMarin qu'il ne voie que les sous-marins. Spring Data n'ajoute AUCUNE restriction sur _class, et instancie DE FORCE les 45 documents dans la sous-classe demandee. Mistypage silencieux : pas d'exception, pas de log. La reponse montre les deux colonnes : count() nu a 45/45/45, et 10/17/18 avec le discriminant ecrit a la main.
+}

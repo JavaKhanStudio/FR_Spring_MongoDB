@@ -1,0 +1,13 @@
+meta {
+  name: POLYMORPHIC - grouper sur le discriminant
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{hote}}/api/statistiques/repartition-par-forme
+}
+
+docs {
+  _class est un champ COMME UN AUTRE : on groupe dessus, on le filtre, on l'indexe. C'est ce qui rend le polymorphisme interrogeable, la ou un heritage relationnel imposerait un UNION.
+}

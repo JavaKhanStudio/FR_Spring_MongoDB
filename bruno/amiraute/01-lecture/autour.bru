@@ -1,0 +1,13 @@
+meta {
+  name: Navires autour d'un point
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{hote}}/api/navires/autour?longitude=5.93&latitude=43.12&rayonKm=800
+}
+
+docs {
+  $geoNear : la seule facon d'obtenir la DISTANCE calculee en retour. $near la trie mais ne la renvoie pas. Depuis MongoDB 7, $geoNear n'accepte plus le parametre limit : il faut une etape $limit distincte.
+}

@@ -1,0 +1,20 @@
+meta {
+  name: Supprimer le prototype
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{hote}}/api/navires/{{prototypeId}}
+}
+
+docs {
+  Supprime le prototype cree a l'etape 1 - et LUI SEUL. Le dossier est
+  autonome : le jouer en entier laisse le jeu de reference intact.
+
+  MongoDB n'a AUCUNE integrite referentielle : pas de clef etrangere, pas de
+  ON DELETE CASCADE. Le nettoyage des membres d'equipage et le retrait du
+  navire de ses missions sont faits **par le code applicatif**, dans
+  `NavireService.delete`. Ce que le SGBD ne garantit pas, quelqu'un doit
+  l'ecrire.
+}

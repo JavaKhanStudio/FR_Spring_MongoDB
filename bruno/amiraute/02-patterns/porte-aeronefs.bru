@@ -1,0 +1,13 @@
+meta {
+  name: POLYMORPHIC - tableau propre a une sous-classe
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{hote}}/api/navires/porte-aeronefs?catapulte=CATOBAR
+}
+
+docs {
+  groupeAerien est un tableau de sous-documents qui n'existe que sur les porte-aeronefs. Ce n'est pas un champ scalaire qui varie, c'est une structure entiere qui apparait.
+}

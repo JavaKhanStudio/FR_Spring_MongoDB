@@ -1,0 +1,13 @@
+meta {
+  name: Recherche plein texte
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{hote}}/api/navires/recherche-texte?q=admiral
+}
+
+docs {
+  Index texte avec poids par champ : nom pese 10, classe 5, devise 1. Une collection ne peut porter qu'UN SEUL index texte. Attendu : Admiral Gorshkov, Admiral Kuznetsov.
+}

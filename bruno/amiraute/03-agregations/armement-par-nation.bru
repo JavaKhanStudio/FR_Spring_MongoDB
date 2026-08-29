@@ -1,0 +1,13 @@
+meta {
+  name: $unwind + second $match
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{hote}}/api/statistiques/armement-par-nation
+}
+
+docs {
+  Le SECOND $match, apres le $unwind, filtre les ELEMENTS eclates - ce que le premier ne pouvait pas faire.
+}

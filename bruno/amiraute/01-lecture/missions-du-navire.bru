@@ -1,0 +1,13 @@
+meta {
+  name: Missions du navire
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{hote}}/api/navires/{{navireId}}/missions
+}
+
+docs {
+  Le N-N vu depuis le navire. Index MULTICLE sur naviresParticipants.id : la question inverse est aussi rapide que la question directe.
+}

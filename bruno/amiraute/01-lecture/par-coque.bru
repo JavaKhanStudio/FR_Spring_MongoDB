@@ -1,0 +1,22 @@
+meta {
+  name: Par cle metier
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{hote}}/api/navires/coque/France/R91
+}
+
+vars:post-response {
+  navireId: res.body.id
+}
+
+docs {
+  Index UNIQUE COMPOSE sur (nation, numeroCoque). Un numero de coque n'est pas unique dans le monde : R91 existe ailleurs. L'unicite se decide sur le metier, pas sur le champ qui ressemble le plus a
+  une cle primaire.
+
+  Cette requete CAPTURE l'identifiant du Charles de Gaulle dans `navireId` :
+  les requetes suivantes qui en ont besoin (equipage, missions, journal) le
+  reprennent automatiquement. Rien a renseigner a la main.
+}

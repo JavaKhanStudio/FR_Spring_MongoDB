@@ -1,0 +1,13 @@
+meta {
+  name: Recherche geographique
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{hote}}/api/navires/recherche?longitude=5.93&latitude=43.12&rayonKm=500
+}
+
+docs {
+  $geoWithin et NON $near : $near impose son propre tri par distance et se combine mal avec skip/limit. $geoWithin se pagine et se trie normalement. Attendu : 6 navires.
+}

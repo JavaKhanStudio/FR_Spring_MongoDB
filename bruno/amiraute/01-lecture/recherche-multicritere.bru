@@ -1,0 +1,13 @@
+meta {
+  name: Recherche multicritere
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{hote}}/api/navires/recherche?nation=France&statut=ACTIF&tonnageMin=5000&tonnageMax=50000&page=0&taille=10&triPar=deplacementTonnes&sens=DESC
+}
+
+docs {
+  MongoTemplate + Criteria. Treize criteres facultatifs et combinables : aucune requete derivee ne peut couvrir 2^13 combinaisons. Attendu : 7 navires.
+}

@@ -1,0 +1,13 @@
+meta {
+  name: Agreger sur un champ propre a une sous-classe
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{hote}}/api/statistiques/aeronefs-par-role
+}
+
+docs {
+  groupeAerien n'existe que sur les porte-aeronefs. Le $match sur _class evite de balayer les 28 autres navires pour rien.
+}

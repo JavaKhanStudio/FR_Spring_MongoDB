@@ -1,0 +1,23 @@
+meta {
+  name: Activer le profileur
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{hote}}/api/diagnostic/profileur?niveau=1
+}
+
+docs {
+  Niveau 0 eteint, 1 les requetes lentes, 2 TOUTES. Le niveau 2 ne se justifie
+  que quelques secondes, en recette.
+
+  LE SEUIL N'EST PAS UN PARAMETRE ICI, et c'est voulu : `slowms` est un
+  reglage SERVEUR, global a l'instance. Le modifier depuis une connexion
+  applicative exige des droits de niveau cluster. Verifie :
+
+      { profile: 1 }              -> autorise
+      { profile: 1, slowms: 20 }  -> Unauthorized (code 13)
+
+  Le seuil est donc fixe au demarrage de mongod (`--slowms=20`).
+}

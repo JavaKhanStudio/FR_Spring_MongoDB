@@ -161,3 +161,4 @@ Le glossaire complet est dans `docs/CONCEPTION.md` §7.2.
 
 Les décisions et ce qui a été **écarté** — Lombok, Spring Security, front-end,
 `@DBRef`, multi-module — sont justifiés dans `docs/CONCEPTION.md` §2.
+# FR_Spring_MongoDB

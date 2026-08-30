@@ -12,6 +12,8 @@ target/
 .classpath
 .project
 
+.interne/
+
 # --- systeme ---------------------------------------------------------------
 .DS_Store
 Thumbs.db

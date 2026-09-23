@@ -20,7 +20,32 @@ cd amiraute-api && ./mvnw spring-boot:run
 | API | <http://localhost:8080/api/navires?nation=France> |
 | Pages | <http://localhost:8080/vue/navires> — avec le compteur de requêtes Mongo |
 
-`make aide` liste toutes les cibles.
+`make aide` liste toutes les cibles. Sous Windows, voir [« Sous Windows »](#sous-windows).
+
+---
+
+## Sous Windows
+
+Pas besoin de `make`, ni de WSL. Il faut **Docker Desktop**, installé et lancé,
+**Git** et un **JDK 21**. Dans PowerShell :
+
+```powershell
+.\make simple
+.\make amorcer
+cd amiraute-api; .\mvnw spring-boot:run
+```
+
+`.\make` remplace `make` dans **toutes** les commandes de ce README et de
+`docker/README.md`, réglages compris : `.\make charger F=mongosh/01-crud.js`,
+`.\make partition`, `.\make aide`. Dans l'invite de commandes (`cmd`),
+`make simple` suffit. `.\mvnw` lance `mvnw.cmd` : Maven n'est pas à installer.
+
+C'est `make.cmd`, à la racine, qui lance `docker/windows.ps1` : les mêmes
+commandes `docker compose` que le `Makefile`, cible pour cible. Il passe outre
+la politique d'exécution de PowerShell, qu'on n'a donc pas à toucher.
+
+Sous macOS, les commandes sont celles de Linux ; `make` vient avec les outils en
+ligne de commande de Xcode (`xcode-select --install`).
 
 ---
 

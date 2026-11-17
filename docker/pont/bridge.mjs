@@ -197,6 +197,7 @@ async function pollLoop() {
 const MARK = `<meta name="pont" content="${a.db}.${a.coll}">`;
 // r233: a file of the deployed tree, fetched at its own path under --site. A path with no extension and no slash is
 // a folder (the host redirects it): sent to path + '/' here, so the page's relative imports resolve against the folder.
+const CF_CHECK = /<script>(?:(?!<\/script>)[\s\S])*?\/cdn-cgi\/challenge-platform\/[\s\S]*?<\/script>/g;
 async function sendRemote(res, url) {
   let p; try { p = new URL(url, 'http://x').pathname; } catch { res.writeHead(404).end(); return; }
   const segs = decodeURIComponent(p).split('/');
@@ -210,7 +211,9 @@ async function sendRemote(res, url) {
   catch { res.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' }).end(`Le pont n'a pas pu joindre ${SITE.origin} : il lui faut Internet pour servir les capsules.`); return; }
   if (!r.ok) { res.writeHead(r.status === 404 ? 404 : 502).end(); return; }
   const head = { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' };
-  if (type.startsWith('text/html')) { res.writeHead(200, head).end((await r.text()).replace('</head>', MARK + '</head>')); return; }
+  // r257: the host (Cloudflare) adds its bot check to each page, a script loading /cdn-cgi/challenge-platform/... from the
+  // page's origin, which here is the bridge: a 404 in the student's console. It checks nothing on 127.0.0.1, so it goes.
+  if (type.startsWith('text/html')) { res.writeHead(200, head).end((await r.text()).replace(CF_CHECK, '').replace('</head>', MARK + '</head>')); return; }
   res.writeHead(200, head).end(Buffer.from(await r.arrayBuffer()));
 }
 function sendFile(res, f, type) {

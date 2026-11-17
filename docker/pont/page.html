@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Spike r8 : la base réelle à l'écran</title>
+<style>
+  :root { color-scheme: dark; font: 15px/1.4 system-ui, sans-serif; }
+  body { margin: 0; background: #12181f; color: #e6edf3; display: grid; grid-template: auto 1fr / 1.5fr 1fr; height: 100vh; }
+  header { grid-column: 1 / 3; padding: 10px 16px; background: #1b242e; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  h1 { font-size: 16px; margin: 0; font-family: ui-monospace, monospace; }
+  #etat { font-weight: 600; } #etat.vif { color: #57d38c; } #etat.perdu { color: #ff7b72; }
+  #sources, #compte { color: #9fb0c0; font-size: 13px; } #sources.alerte { color: #ffb86b; }
+  main, aside { overflow: auto; padding: 12px 16px; min-height: 0; } aside { background: #0d1218; font: 13px/1.5 ui-monospace, monospace; }
+  h2 { font-size: 13px; color: #9fb0c0; margin: 0 0 8px; font-weight: 500; }
+  #docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .doc { background: #1f2a35; border: 1px solid #33424f; border-radius: 6px; padding: 8px 10px; overflow-wrap: anywhere; }
+  .doc.frais { border-color: #57d38c; box-shadow: 0 0 0 2px #57d38c55; }
+  .doc .id { color: #7d8e9e; font: 11px ui-monospace, monospace; display: block; margin-bottom: 4px; }
+  .doc .k { color: #9fb0c0; }
+  #vide { color: #9fb0c0; }
+  .op { padding: 3px 0; border-bottom: 1px solid #1f2a35; overflow-wrap: anywhere; } .op b { color: #79c0ff; } .op .scan { color: #ffb86b; } .op .index { color: #57d38c; }
+</style></head>
+<body>
+<header><h1 id="titre">lab.navires</h1><span id="etat" data-etat="attente">Connexion…</span><span id="compte"></span><span id="sources"></span></header>
+<main><h2>Les documents, tels que le serveur les rapporte</h2><p id="vide" hidden>Le serveur ne rapporte aucun document.</p><div id="docs"></div></main>
+<aside><h2>Ce que le serveur dit avoir fait (profileur)</h2><div id="journal"></div></aside>
+<script type="module">
+import { ecouter } from '/pont/pont.js';
+// Nothing here invents a document: every change comes from an event the bridge read off the server.
+const $ = (id) => document.getElementById(id);
+const parse = (e) => JSON.parse(e.data);
+const shortId = (id) => (id && id.$oid) ? id.$oid : JSON.stringify(id);
+const cards = new Map();
+let shownMax = 200, serverCount = null, serverUp = false, bridgeUp = false, lastStatus = null, gone = null;
+
+function show(v) { const s = typeof v === 'string' ? v : JSON.stringify(v); return s.length > 300 ? s.slice(0, 300) + '…' : s; }
+function fill(card, doc) {                     // textContent only: a document's text is never markup
+  card.replaceChildren();
+  const id = document.createElement('span'); id.className = 'id'; id.textContent = shortId(doc._id); card.append(id);
+  for (const [k, v] of Object.entries(doc)) {
+    if (k === '_id') continue;
+    const line = document.createElement('div');
+    const key = document.createElement('span'); key.className = 'k'; key.textContent = k + ' : ';
+    line.append(key, show(v)); card.append(line);
+  }
+}
+function refresh() {
+  $('vide').hidden = cards.size > 0;
+  $('vide').textContent = gone ? `La collection a été renommée en ${gone} : le serveur ne rapporte plus rien sous ce nom.` : 'Le serveur ne rapporte aucun document.';
+  const e = $('etat');
+  const up = bridgeUp && serverUp;
+  e.className = up ? 'vif' : 'perdu'; e.dataset.etat = up ? 'vif' : (bridgeUp ? 'serveur-perdu' : 'pont-perdu');
+  e.textContent = up ? 'En direct' : (bridgeUp ? 'Serveur injoignable : ce qui suit peut être périmé' : 'Pont injoignable : ce qui suit peut être périmé');
+  $('compte').textContent = serverCount === null ? '' : `${serverCount} sur le serveur` + (serverCount > cards.size ? `, ${cards.size} affichés` : '');
+  if (lastStatus?.db) { $('titre').textContent = `${lastStatus.db}.${lastStatus.coll}`; document.title = `${lastStatus.db}.${lastStatus.coll} : la base réelle à l'écran`; }
+  if (lastStatus) $('sources').textContent = `mongod ${lastStatus.version ?? '?'} · flux : ${lastStatus.stream} · profileur : ${lastStatus.profiler}`;
+  $('sources').classList.toggle('alerte', !!lastStatus && lastStatus.profiler !== 'live');
+}
+function upsert(doc, fresh) {
+  const k = shortId(doc._id);
+  let c = cards.get(k);
+  if (!c) {
+    c = document.createElement('div'); c.className = 'doc'; c.dataset.id = k; cards.set(k, c); $('docs').prepend(c);
+    while (cards.size > shownMax) { const last = $('docs').lastElementChild; cards.delete(last.dataset.id); last.remove(); }
+  }
+  fill(c, doc);
+  if (fresh) { c.classList.add('frais'); setTimeout(() => c.classList.remove('frais'), 1800); }
+}
+function clearAll() { cards.clear(); $('docs').replaceChildren(); }
+function logOp(o) {
+  const l = document.createElement('div'); l.className = 'op'; l.dataset.verb = o.verb;
+  const b = document.createElement('b'); b.textContent = o.verb; l.append(b, ' ' + (lastStatus?.db && o.ns.startsWith(lastStatus.db + '.') ? o.ns.slice(lastStatus.db.length + 1) : o.ns));
+  if (o.plan) { const p = document.createElement('span'); p.className = o.plan.startsWith('COLLSCAN') ? 'scan' : 'index'; p.textContent = ' ' + o.plan; l.append(p); }
+  const bits = [];
+  if (o.docsExamined !== null && o.plan) bits.push(`${o.docsExamined} docs lus`);
+  if (o.nreturned !== null && o.plan) bits.push(`${o.nreturned} rendus`);
+  if (o.ninserted) bits.push(`${o.ninserted} insérés`);
+  if (o.nModified) bits.push(`${o.nModified} modifiés`);
+  if (o.ndeleted) bits.push(`${o.ndeleted} supprimés`);
+  bits.push(`${o.millis} ms`);
+  l.append(' · ' + bits.join(' · '));
+  const j = $('journal'); j.prepend(l); while (j.children.length > 100) j.lastElementChild.remove();
+}
+ecouter({
+  open() { bridgeUp = true; refresh(); },
+  error() { bridgeUp = false; refresh(); },
+  status(s) { lastStatus = s; serverUp = s.server; refresh(); },
+  snapshot(s) { shownMax = s.shownMax; serverCount = s.count; const seen = new Set(cards.keys());
+    if (s.docs.length) gone = null;
+    clearAll(); for (const d of s.docs.slice().reverse()) upsert(d, !seen.has(shortId(d._id)) && seen.size > 0); refresh(); },
+  upsert(u) { gone = null; upsert(u.doc, true); refresh(); },
+  remove(r) { const k = shortId(r.id); cards.get(k)?.remove(); cards.delete(k); refresh(); },
+  clear(c) { gone = c.why === 'rename' ? c.to : null; clearAll(); refresh(); },
+  count(c) { serverCount = c.count; refresh(); },
+  op: logOp,
+});
+refresh();
+</script>
+</body></html>

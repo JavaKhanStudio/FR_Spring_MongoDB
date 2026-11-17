@@ -1,0 +1,38 @@
+# carnet's « En direct » for a course student, laid over the course's own compose, untouched. In docker/:
+#   PONT_DB=Ficelle_carnet PONT_COLL=turtles PONT_SEED=code/trouver/turtles.json \
+#   docker compose -f docker-compose.yml -f compose.pont.yml --profile simple up -d --build --wait
+# then open http://127.0.0.1:8820/carnet/#direct.
+# The bridge (pont/, built here) reads the capsule's own database only (pont/pont-init.js makes its read-only
+# account) and fetches each capsule page from PONT_URL, the deployed site: this folder holds no copy of the
+# capsules, so it needs Internet. Relative paths resolve against docker/, the first file's folder.
+# Source: MongoDB_en_visuel (lab/course_pont, lab/live_insert, lab/course_stack), copied by tools/pont_course.py (r233).
+services:
+  pont-init:
+    image: mongo:8.0
+    profiles: ["simple"]
+    environment:
+      PONT_DB: "${PONT_DB:?PONT_DB=Ficelle_<capsule>}"
+      PONT_SEED: "${PONT_SEED:-}"
+      PONT_COLL: "${PONT_COLL:-navires}"
+      PONT_URL: "${PONT_URL:-https://simonbedardprog.com/ficelle/mongodb/}"
+    # Retried: on a new volume the course's healthcheck answers from the entrypoint's TEMPORARY mongod, before the
+    # real server listens on the network.
+    command: ["sh", "-c", "for i in $$(seq 60); do mongosh --quiet --host mongo -u amiral -p amiral --authenticationDatabase admin --file /init/pont-init.js && exit 0; sleep 2; done; exit 1"]
+    volumes: ["./pont/pont-init.js:/init/pont-init.js:ro,z"]
+    restart: "no"
+    depends_on:
+      mongo: { condition: service_healthy }
+  pont:
+    build: ./pont
+    image: localhost/ficelle-pont
+    profiles: ["simple"]
+    command: ["--uri", "mongodb://pont:pont@mongo:27017/?authSource=${PONT_DB}", "--db", "${PONT_DB}", "--coll", "${PONT_COLL:-navires}",   # push-check: allow: the bridge's local read-only account (pont-init.js)
+              "--bind", "0.0.0.0", "--port", "${PONT_PORT:-8820}", "--site", "${PONT_URL:-https://simonbedardprog.com/ficelle/mongodb/}"]
+    ports: ["127.0.0.1:${PONT_PORT:-8820}:${PONT_PORT:-8820}"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:${PONT_PORT:-8820}/pont/pont.js"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    depends_on:
+      pont-init: { condition: service_completed_successfully }

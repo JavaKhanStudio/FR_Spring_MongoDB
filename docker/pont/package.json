@@ -1,0 +1,1 @@
+{"name":"live-insert-spike","private":true,"type":"module","description":"r8 spike: a real insert seen on the screen. Scratch only, nothing for students.","dependencies":{"mongodb":"^6"}}

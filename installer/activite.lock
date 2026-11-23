@@ -1,0 +1,9 @@
+# Écrit par ./ficelle activite : ne pas modifier à la main, ni les fichiers de ce dossier.
+ficelle = "d19862c29cbd1f136b80437588b5b3a43c24176a"
+catalogue = "b1a3c1b01346"
+
+[files]
+"verifier.sh" = "57367f0bf5554a7dfe1c5b006092404512198fbbc4e541ac961ca73647496122"
+"verifier.ps1" = "65e2219b33c990d1bb1d6bddb9bcc64e0497198a1e36244bc711884b93f5d14e"
+"verifier.cmd" = "441d43eeb9d5d367a914e02dda9daf8631a50992568d1fb737248dcd3472e0be"
+"index.html" = "6602a9b971200055f02854fdc3ef79351c7f02b30cfaa17780a4aeb349adb276"

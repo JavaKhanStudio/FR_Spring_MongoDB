@@ -28,6 +28,28 @@ make shell                    # ouvre un shell sur la base amiraute
 make charger F=mongosh/04-index.js
 ```
 
+### Installer `mongosh` sur le poste
+
+`make shell` ouvre le `mongosh` **du conteneur**. Les énoncés et les capsules
+de *MongoDB en visuel*, eux, tapent `mongosh` dans un terminal **du poste** :
+il faut l'y installer (gratuit, quelques minutes).
+
+```bash
+winget install MongoDB.Shell     # Windows
+brew install mongosh             # macOS
+npm install -g mongosh           # partout où Node.js est installé
+```
+
+Ou le paquet de <https://www.mongodb.com/try/download/shell>. Vérifier avec
+`mongosh --version`.
+
+Sans installation, le `mongosh` du conteneur prend la même URL (depuis
+`docker/`) :
+
+```bash
+docker compose exec mongo mongosh "<l'URL de connexion>"
+```
+
 Les commandes du formateur :
 
 ```js

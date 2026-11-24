@@ -35,9 +35,9 @@ de *MongoDB en visuel*, eux, tapent `mongosh` dans un terminal **du poste** :
 il faut l'y installer (gratuit, quelques minutes).
 
 ```bash
+npm install -g mongosh           # partout où Node.js est installé
 winget install MongoDB.Shell     # Windows
 brew install mongosh             # macOS
-npm install -g mongosh           # partout où Node.js est installé
 ```
 
 Ou le paquet de <https://www.mongodb.com/try/download/shell>. Vérifier avec

@@ -16,8 +16,11 @@ services:
     container_name: amiraute-mongo
     profiles: ["simple"]
     restart: unless-stopped
+    # 127.0.0.1 devant chaque port publie : ce poste seulement. Sans lui,
+    # Docker ecoute sur toutes les interfaces, et un voisin du Wi-Fi de la
+    # salle joindrait la base en admin (et mongo-express, sans mot de passe).
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: amiral
       MONGO_INITDB_ROOT_PASSWORD: amiral
@@ -52,12 +55,16 @@ services:
       # On le fixe donc ici, une fois pour toutes.
       - "--slowms=20"
     healthcheck:
-      # start_period genereux : l'entrypoint demarre un mongod TEMPORAIRE pour
+      # Sur un volume neuf, l'entrypoint demarre un mongod TEMPORAIRE pour
       # jouer /docker-entrypoint-initdb.d, l'arrete, puis relance le vrai.
-      # Un ping reussi trop tot repond donc contre l'instance d'init, qui va
-      # disparaitre. Les stagiaires voient sinon un ECONNREFUSED juste apres
-      # un "healthy".
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      # Un simple ping repond deja contre cette instance d'init, et un ping
+      # reussi pendant start_period rend le conteneur "healthy" aussitot :
+      # "up --wait" rendait la main avant que amiraute_app existe (mesure,
+      # mongodb r164). Le test exige donc deux choses :
+      #  - plus de pidfile de l'instance temporaire (l'entrypoint ne l'efface
+      #    qu'apres l'avoir arretee) ;
+      #  - le compte amiraute_app cree par mongo-init/01, lu sur le vrai mongod.
+      test: ["CMD-SHELL", "test ! -e /tmp/docker-entrypoint-temp-mongod.pid && mongosh --quiet -u amiral -p amiral --authenticationDatabase admin --eval 'quit(db.getSiblingDB(\"amiraute\").getUser(\"amiraute_app\") ? 0 : 1)'"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -69,7 +76,7 @@ services:
     profiles: ["simple"]
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     environment:
       ME_CONFIG_MONGODB_URL: mongodb://amiral:amiral@mongo:27017/?authSource=admin
       ME_CONFIG_BASICAUTH: "false"
@@ -118,7 +125,7 @@ services:
     hostname: mongo1
     profiles: ["replique"]
     ports:
-      - "27018:27017"
+      - "127.0.0.1:27018:27017"
     volumes:
       - donnees-rs1:/data/db
       # Les scripts du cours, joues avec --file (jamais par stdin : mongosh
@@ -141,7 +148,7 @@ services:
     hostname: mongo2
     profiles: ["replique"]
     ports:
-      - "27019:27017"
+      - "127.0.0.1:27019:27017"
     volumes:
       - donnees-rs2:/data/db
     environment:
@@ -155,7 +162,7 @@ services:
     hostname: mongo3
     profiles: ["replique"]
     ports:
-      - "27020:27017"
+      - "127.0.0.1:27020:27017"
     volumes:
       - donnees-rs3:/data/db
     environment:
@@ -267,7 +274,7 @@ services:
     profiles: ["partition"]
     ports:
       # 27117 cote hote : le cluster sharde peut coexister avec le profil simple.
-      - "27117:27017"
+      - "127.0.0.1:27117:27017"
     depends_on:
       shard-init:
         condition: service_completed_successfully

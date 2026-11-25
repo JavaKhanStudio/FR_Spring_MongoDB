@@ -49,8 +49,12 @@ les deux, les connexions sont refusées.
 Un script qui enchaîne sur un simple `ping` réussi peut donc taper contre
 l'instance temporaire et recevoir un `ECONNREFUSED` juste après un `healthy`.
 
-Le `start_period` du healthcheck est réglé à 40 s pour couvrir cette phase. Si
-tu scriptes toi-même une attente, exige **plusieurs succès consécutifs** :
+Le `start_period` ne protège de rien : un ping réussi pendant cette période rend
+le conteneur `healthy` aussitôt. Le healthcheck du profil `simple` attend donc
+que l'instance temporaire soit arrêtée (son pidfile a disparu) et que le compte
+`amiraute_app` existe : `docker compose --profile simple up -d --wait` ne rend
+la main qu'une fois l'init jouée. Si tu scriptes toi-même une attente, exige
+**plusieurs succès consécutifs** :
 
 ```bash
 ok=0

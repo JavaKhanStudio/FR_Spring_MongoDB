@@ -20,6 +20,7 @@ docker compose --profile simple up -d
 | Compte applicatif | `amiraute_app` / `amiraute` (`authSource=amiraute`) |
 | Compte lecture seule | `amiraute_lecture` / `amiraute` (`authSource=amiraute`) |
 | mongo-express | http://localhost:8081 |
+| Console de MongoDB en visuel | http://127.0.0.1:8822 (la capsule achille la trouve seule) |
 
 Chaîne de connexion utilisée par Spring :
 

@@ -104,11 +104,14 @@ const CURSOR = s => s.replace(/[^\n]*\x1b\[1G/g, '').replace(/\x1b\[[0-9;?]*[A-Z
 // a prompt ends what mongosh prints: « LOG_FLOTTE_MN> » (the database's name, then >) or « | », a line still open
 const PROMPT = /(?:^|\n)([^\n]*> |\| )$/;
 const clean = s => CURSOR(s.replace(/\r/g, '')).replace(NOISE, '');
+// r1375: a chunk joins the buffer's last, open line before it is cleaned: mongosh redraws its first prompt as « ESC[1G ESC[0J ␠ ESC[1G »
+// and a pipe may cut after the space, so the ESC[1G that erases it came in the next chunk and the prompt read « ␠LOG_FLOTTE_MN> »
+const more = (buf, text) => { const i = buf.lastIndexOf('\n') + 1; return buf.slice(0, i) + clean(buf.slice(i) + text); };
 const sessions = new Map();
 function open(uri) {
   const p = spawn(a.mongosh, [uri], { stdio: ['pipe', 'pipe', 'pipe'], ...confined() });
   const s = { id: randomUUID(), p, buf: '', wait: null, used: Date.now(), closed: false };
-  const take = d => { s.buf += clean(d.toString('utf8')); s.wait?.(); };
+  const take = d => { s.buf = more(s.buf, d.toString('utf8')); s.wait?.(); };
   p.stdout.on('data', take); p.stderr.on('data', take);
   const gone = () => { s.closed = true; sessions.delete(s.id); s.wait?.(); };
   p.on('exit', gone); p.on('error', gone);
@@ -133,7 +136,7 @@ const CHARGER = a.charger && resolve(a.charger);   // read by name under the con
 function charge() {
   return loading ??= new Promise(done => {
     const p = spawn(a.mongosh, [a.admin, '--quiet', CHARGER], { stdio: ['ignore', 'pipe', 'pipe'], ...confined(CHARGER) });
-    let out = ''; const take = d => { out = (out + clean(d.toString('utf8'))).slice(-8192); };
+    let out = ''; const take = d => { out = more(out, d.toString('utf8')).slice(-8192); };
     p.stdout.on('data', take); p.stderr.on('data', take);
     const cap = setTimeout(() => p.kill(), 120e3);
     const end = code => { clearTimeout(cap); loading = null; done({ ok: code === 0, out: out.replace(/\n$/, '') }); };

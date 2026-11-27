@@ -96,6 +96,23 @@ services:
   # Node : ni processus, ni fichier lu ou ecrit) ; seules les pages du cours
   # sont servies (Origin et Host verifies) ; et le conteneur lui-meme ne voit
   # aucun fichier du poste, en lecture seule, sans aucun privilege.
+  # La base des exercices (EXERCICES) et son compte public mousse, qui ne
+  # peut ecrire que la : console/exercices-init.js, joue en amiral a CHAQUE
+  # demarrage (mongo-init/ ne tourne qu'a la creation du volume, et un poste
+  # qui a deja sa base n'aurait jamais ce compte). La console l'ouvre sous le
+  # nom « exercices » quand une capsule d'exercices le demande.
+  console-init:
+    image: mongo:8.0
+    container_name: amiraute-console-init
+    profiles: ["simple"]
+    restart: "no"
+    command: ["mongosh", "--quiet", "mongodb://amiral:amiral@mongo:27017/admin", "--file", "/init/exercices-init.js"]   # push-check: allow (le compte admin documente du cours)
+    volumes:
+      - ./console/exercices-init.js:/init/exercices-init.js:ro,z
+    depends_on:
+      mongo:
+        condition: service_healthy
+
   console:
     build: ./console
     image: localhost/ficelle-console
@@ -103,7 +120,8 @@ services:
     profiles: ["simple"]
     restart: unless-stopped
     command: ["mongodb://enqueteur:ENQ-0405@mongo:27017/LOG_FLOTTE_MN", "--port", "8822",   # push-check: allow (le badge public du saboteur V2)
-              "--charger", "saboteur-v2-donnees.js", "--admin", "mongodb://amiral:amiral@mongo:27017/admin"]   # push-check: allow (le compte admin documente du cours)
+              "--charger", "saboteur-v2-donnees.js", "--admin", "mongodb://amiral:amiral@mongo:27017/admin",   # push-check: allow (le compte admin documente du cours)
+              "--base", "exercices=mongodb://mousse:MOUSSE-1@mongo:27017/EXERCICES"]   # push-check: allow (le compte public des exercices, EXERCICES seule)
     ports:
       - "127.0.0.1:8822:8823"
     read_only: true
@@ -113,6 +131,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      console-init:
+        condition: service_completed_successfully
 
   # =========================================================================
   # PROFIL "replique" - replica set a 3 noeuds (J2 apres-midi).

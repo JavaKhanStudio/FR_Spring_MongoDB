@@ -9,6 +9,12 @@
 // by the learner, as --admin's login (mongosh <admin uri> --quiet <data.js>), then reopen <uri>'s session: a data script that
 // creates <uri>'s user can run before <uri> logs in at all. The page sends no code and no path: POST /charger takes no
 // argument, and /hello says only the file's name. Without --charger, /charger is 404.
+//   node mongosh-bridge.mjs <uri> --base exercices=<write uri> [--base ...]        (r1359, mongodb-en-visuel r929)
+// --base: more bases a page may open BY NAME (an exercise base on a login that may write there). /hello?base=<name> names its
+// user and database, POST /open { base: <name> } starts mongosh on its URI; no name is <uri>, as before. The list is fixed here,
+// on the command line: a page picks a name, never a host, a login or a database (a « uri » in a request is never read), and an
+// unknown name is 404. What a write login may touch is the server's to say: give it readWrite on its own base alone.
+// --charger stays <uri>'s: the page's « load the base » reopens whatever base its console names.
 // A capsule offers it under its own name with the command to type: MongoshConsole's bridgeFile { href, name, cmd }.
 // Two-way on purpose, which docs/live-server.md's first bridge (one way, SSE) did not allow: Simon chose it on mongodb-en-visuel
 // r654. What keeps it a door for a course page alone:
@@ -32,23 +38,32 @@ import { spawn, execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
+import { basename, delimiter, isAbsolute, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 const { values: a, positionals } = parseArgs({ allowPositionals: true, options: {
   uri: { type: 'string' }, port: { type: 'string', default: '8822' }, mongosh: { type: 'string', default: 'mongosh' },
-  charger: { type: 'string' }, admin: { type: 'string' } } });
+  charger: { type: 'string' }, admin: { type: 'string' }, base: { type: 'string', multiple: true, default: [] } } });
 const URI = a.uri ?? positionals[0];
 if (!URI || !/^mongodb(\+srv)?:\/\//.test(URI)) { console.error('Donnez l’URL de connexion, comme à mongosh : node <ce fichier> mongodb://utilisateur:motdepasse@localhost:27017/base'); process.exit(2); }   // push-check: allow (a placeholder, no real login)
 if (a.charger && !/^mongodb(\+srv)?:\/\//.test(a.admin ?? '')) { console.error('--charger demande --admin : l’URL d’un compte qui peut créer la base, comme à mongosh'); process.exit(2); }
 if (a.charger && !existsSync(a.charger)) { console.error(`Fichier introuvable : ${a.charger} (lancez la commande depuis le dossier où il est, ou donnez son chemin)`); process.exit(2); }
+// r1359: the named bases, fixed at start; a name is a short word, the URI one mongosh takes
+const BASES = new Map();
+for (const b of a.base) {
+  const m = /^([A-Za-z][\w-]{0,31})=(mongodb(\+srv)?:\/\/.+)$/.exec(b);
+  if (!m) { console.error(`--base nom=URL : un nom court (lettres, chiffres, - ou _), puis l’URL comme à mongosh (reçu : ${b.split('=')[0]}=…)`); process.exit(2); }
+  if (BASES.has(m[1])) { console.error(`--base ${m[1]} donné deux fois`); process.exit(2); }
+  BASES.set(m[1], m[2]);
+}
 const PORT = +a.port, MAX = 4, IDLE = 30 * 60e3, LINE = 64 * 1024, WAIT = 20e3, QUIET = 60;
 // the pages that may type: the live site, the course's own worker by its exact host (r784: never a *.workers.dev pattern,
 // which any Cloudflare account can serve), and a checkout served on this machine (any port)
 const SITES = new Set(['https://simonbedardprog.com', 'https://www.simonbedardprog.com', 'https://ficelle-mongodb.simonbedardprog.workers.dev']);
 const allowed = o => SITES.has(o) || /^http:\/\/(127\.0\.0\.1|localhost)(:\d{1,5})?$/.test(o);
 const HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
-const who = (() => { try { const u = new URL(URI); return { user: decodeURIComponent(u.username), db: u.pathname.slice(1) }; } catch { return { user: '', db: '' }; } })();
+const whoOf = uri => { try { const u = new URL(uri); return { user: decodeURIComponent(u.username), db: u.pathname.slice(1) }; } catch { return { user: '', db: '' }; } };
+const who = whoOf(URI);
 let version = '?';
 try { version = execFileSync(a.mongosh, ['--version'], { encoding: 'utf8' }).trim(); }
 catch { console.error(`mongosh introuvable (${a.mongosh}) : installez-le, ou donnez son chemin avec --mongosh`); process.exit(2); }
@@ -71,6 +86,7 @@ const confined = (...reads) => ({ cwd: JAIL, env: { ...Object.fromEntries(KEEP.f
 // what the confinement makes mongosh say once at start, not for the learner: the warnings that it writes no file, and the
 // prompt redrawn with cursor codes (« ESC[1G » back to column 1: what stood before it on that line is gone, as on a screen)
 const NOISE = /^(Warning: Could not access file: Access to this API has been restricted\.|Access to FileSystemWrite is restricted\.|REPL session history will not be persisted\.).*\n?/gm;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: \x1b is ESC, the start of the ANSI cursor codes this strips (r1344)
 const CURSOR = s => s.replace(/[^\n]*\x1b\[1G/g, '').replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
 { // the proof, before the port opens: three escapes, each must be refused
   const probe = "for (const [k, f] of [['spawn', () => require('child_process').execFileSync(process.execPath, ['--version'])], " +
@@ -79,7 +95,7 @@ const CURSOR = s => s.replace(/[^\n]*\x1b\[1G/g, '').replace(/\x1b\[[0-9;?]*[A-Z
   let out = '';
   try { out = execFileSync(a.mongosh, ['--nodb', '--quiet', '--eval', probe], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...confined() }); }
   catch (e) { out = String(e.stdout ?? '') + String(e.stderr ?? ''); }
-  if (!['spawn', 'read', 'write'].every(k => out.includes('SHUT ' + k))) {
+  if (!['spawn', 'read', 'write'].every(k => out.includes(`SHUT ${k}`))) {
     console.error(`Ce mongosh (${version}) ne se laisse pas enfermer (option --permission de Node) : mettez-le à jour (sa dernière version).\n${out.trim().slice(0, 400)}`);
     rmSync(JAIL, { recursive: true, force: true }); process.exit(2);
   }
@@ -89,8 +105,8 @@ const CURSOR = s => s.replace(/[^\n]*\x1b\[1G/g, '').replace(/\x1b\[[0-9;?]*[A-Z
 const PROMPT = /(?:^|\n)([^\n]*> |\| )$/;
 const clean = s => CURSOR(s.replace(/\r/g, '')).replace(NOISE, '');
 const sessions = new Map();
-function open() {
-  const p = spawn(a.mongosh, [URI], { stdio: ['pipe', 'pipe', 'pipe'], ...confined() });
+function open(uri) {
+  const p = spawn(a.mongosh, [uri], { stdio: ['pipe', 'pipe', 'pipe'], ...confined() });
   const s = { id: randomUUID(), p, buf: '', wait: null, used: Date.now(), closed: false };
   const take = d => { s.buf += clean(d.toString('utf8')); s.wait?.(); };
   p.stdout.on('data', take); p.stderr.on('data', take);
@@ -128,39 +144,54 @@ setInterval(() => { for (const s of sessions.values()) if (Date.now() - s.used >
 
 const body = req => new Promise((ok, ko) => { let b = ''; req.on('data', d => { b += d; if (b.length > LINE) { ko(new Error('too long')); req.destroy(); } });
   req.on('end', () => { try { ok(JSON.parse(b || '{}')); } catch (e) { ko(e); } }); });
+// one function per route, each returning [status, json]; the handler around them checks who calls (r1344: was one handler)
+const NOT_FOUND = [404, { error: 'not found' }];
+// r1359: a base the page names, from the list fixed at start; '' or none is <uri>; anything else is null
+const pick = name => name == null || name === '' ? URI : typeof name === 'string' && BASES.has(name) ? BASES.get(name) : null;
+const UNKNOWN = [404, { error: 'unknown base' }];
+const hello = url => { const name = url.searchParams.get('base'), uri = pick(name);
+  if (!uri) return UNKNOWN;
+  return [200, { ok: true, mongosh: version, ...whoOf(uri), ...(name ? { base: name } : {}), ...(BASES.size ? { bases: [...BASES.keys()] } : {}),
+    ...(a.charger ? { charger: basename(a.charger) } : {}) }]; };
+async function openSession(q) {
+  const uri = pick(q.base);
+  if (!uri) return UNKNOWN;
+  if (sessions.size >= MAX) for (const s of [...sessions.values()].sort((x, y) => x.used - y.used).slice(0, sessions.size - MAX + 1)) s.p.kill();
+  const s = open(uri), r = await answer(s);
+  return [r.closed ? 502 : 200, { id: s.id, banner: r.out, prompt: r.prompt, closed: r.closed }];
+}
+async function chargeBase() {
+  if (!a.charger) return [404, { error: 'no --charger' }];
+  const r = await charge();
+  return [r.ok ? 200 : 502, r];
+}
+async function runLine(q) {
+  const s = sessions.get(q.id);
+  if (!s) return [410, { error: 'session closed' }];
+  if (typeof q.line !== 'string' || q.line.length > LINE) return [400, { error: 'line' }];
+  s.used = Date.now(); s.buf = '';
+  s.p.stdin.write(`${q.line.replace(/\r/g, '')}\n`);
+  return [200, await answer(s)];
+}
+const POSTS = new Map([['/open', openSession], ['/charger', chargeBase], ['/run', runLine]]);
+async function route(req, url) {
+  if (req.method === 'GET' && url.pathname === '/hello') return hello(url);
+  if (req.method !== 'POST') return NOT_FOUND;
+  const q = await body(req), f = POSTS.get(url.pathname);
+  return f ? f(q) : NOT_FOUND;
+}
+const corsHead = origin => ({ 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', 'Access-Control-Allow-Private-Network': 'true',
+  'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST', 'Cache-Control': 'no-store' });
 const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin;
   if (!HOSTS.has(req.headers.host) || !origin || !allowed(origin)) { res.writeHead(403).end(); return; }
-  const head = { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', 'Access-Control-Allow-Private-Network': 'true',
-    'Access-Control-Allow-Headers': 'content-type', 'Access-Control-Allow-Methods': 'GET, POST', 'Cache-Control': 'no-store' };
-  const send = (code, o) => res.writeHead(code, { ...head, 'Content-Type': 'application/json' }).end(JSON.stringify(o));
+  const head = corsHead(origin);
   if (req.method === 'OPTIONS') { res.writeHead(204, head).end(); return; }
   const url = new URL(req.url, 'http://x');
-  try {
-    if (req.method === 'GET' && url.pathname === '/hello') return send(200, { ok: true, mongosh: version, ...who, ...(a.charger ? { charger: basename(a.charger) } : {}) });
-    if (req.method !== 'POST') return send(404, { error: 'not found' });
-    const q = await body(req);
-    if (url.pathname === '/open') {
-      if (sessions.size >= MAX) for (const s of [...sessions.values()].sort((x, y) => x.used - y.used).slice(0, sessions.size - MAX + 1)) s.p.kill();
-      const s = open(), r = await answer(s);
-      return send(r.closed ? 502 : 200, { id: s.id, banner: r.out, prompt: r.prompt, closed: r.closed });
-    }
-    if (url.pathname === '/charger') {
-      if (!a.charger) return send(404, { error: 'no --charger' });
-      const r = await charge();
-      return send(r.ok ? 200 : 502, r);
-    }
-    if (url.pathname === '/run') {
-      const s = sessions.get(q.id);
-      if (!s) return send(410, { error: 'session closed' });
-      if (typeof q.line !== 'string' || q.line.length > LINE) return send(400, { error: 'line' });
-      s.used = Date.now(); s.buf = '';
-      s.p.stdin.write(q.line.replace(/\r/g, '') + '\n');
-      return send(200, await answer(s));
-    }
-    send(404, { error: 'not found' });
-  } catch (e) { send(400, { error: String(e.message || e) }); }
+  let code, o;
+  try { [code, o] = await route(req, url); } catch (e) { [code, o] = [400, { error: String(e.message || e) }]; }
+  res.writeHead(code, { ...head, 'Content-Type': 'application/json' }).end(JSON.stringify(o));
 });
-server.listen(PORT, '127.0.0.1', () => console.log(`Pont de la console : http://127.0.0.1:${PORT}, ${version}${who.user ? `, en ${who.user}` : ''}${a.charger ? `, ${basename(a.charger)} prêt à charger` : ''}. Laissez ce terminal ouvert ; Ctrl+C l’arrête.`));
+server.listen(PORT, '127.0.0.1', () => console.log(`Pont de la console : http://127.0.0.1:${PORT}, ${version}${who.user ? `, en ${who.user}` : ''}${BASES.size ? `, bases ${[...BASES.keys()].join(', ')}` : ''}${a.charger ? `, ${basename(a.charger)} prêt à charger` : ''}. Laissez ce terminal ouvert ; Ctrl+C l’arrête.`));
 const bye = () => { for (const s of sessions.values()) s.p.kill(); rmSync(JAIL, { recursive: true, force: true }); process.exit(0); };
 process.on('SIGINT', bye); process.on('SIGTERM', bye);
